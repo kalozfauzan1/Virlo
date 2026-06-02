@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* ========================================
+   Virlo Design Tokens
+   UI/UX Pro Max principles:
+   - Single-color backgrounds (no gradients)
+   - WCAG AA 4.5:1 contrast
+   - White/bordered buttons only
+   - 112px section spacing
+   - Visual hierarchy: hero 120%, support 60%
+   ======================================== */
+
+:root {
+  /* Background - single color, never gradient */
+  --color-bg: #fafafa;
+  --color-bg-alt: #f5f5f5;
+  --color-surface: #ffffff;
+  --color-border: #e5e5e5;
+
+  /* Text - AA compliant */
+  --color-text: #171717;
+  --color-text-muted: #737373;
+  --color-text-subtle: #a3a3a3;
+
+  /* Brand accent - single color, no purple/gradient */
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-accent-muted: #eff6ff;
+
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-success-muted: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-muted: #fffbeb;
+  --color-error: #dc2626;
+  --color-error-muted: #fef2f2;
+
+  /* Typography */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Spacing scale */
+  --spacing-section: 112px;
+
+  /* Visual hierarchy */
+  --size-hero: 1.2;
+  --size-support: 0.6;
+
+  /* Radii - subtle, not rounded-full everywhere */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+.dark {
+  --color-bg: #0a0a0a;
+  --color-bg-alt: #171717;
+  --color-surface: #1a1a1a;
+  --color-border: #262626;
+  --color-text: #fafafa;
+  --color-text-muted: #a3a3a3;
+  --color-text-subtle: #737373;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
+  --color-accent-muted: #1e3a5f;
+  --color-success: #22c55e;
+  --color-success-muted: #052e16;
+  --color-warning: #f59e0b;
+  --color-warning-muted: #451a03;
+  --color-error: #ef4444;
+  --color-error-muted: #450a0a;
+}
+
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Custom colors */
+  --color-bg: var(--color-bg);
+  --color-bg-alt: var(--color-bg-alt);
+  --color-surface: var(--color-surface);
+  --color-border: var(--color-border);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-subtle: var(--color-text-subtle);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-muted: var(--color-accent-muted);
+  --color-success: var(--color-success);
+  --color-success-muted: var(--color-success-muted);
+  --color-warning: var(--color-warning);
+  --color-warning-muted: var(--color-warning-muted);
+  --color-error: var(--color-error);
+  --color-error-muted: var(--color-error-muted);
+}
+
+/* Base styles */
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Animations - subtle only */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 200ms ease;
+}
+
+.animate-slide-up {
+  animation: slide-up 200ms ease;
+}
