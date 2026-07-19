@@ -22,6 +22,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ARG APP_UID=10001
+ARG APP_GID=10001
+
 # Install FFmpeg, OpenCV dependencies, and Node.js (for yt-dlp JS challenges)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -44,12 +47,12 @@ RUN pip install --upgrade --no-cache-dir yt-dlp
 # Copy application code
 COPY . .
 
-# Create a non-root user (Moved up)
-RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
+# Create a non-root user with stable IDs shared by services that write common volumes
+RUN groupadd -g ${APP_GID} appuser && useradd -u ${APP_UID} -g appuser -d /app -s /sbin/nologin appuser
 
-# Create directories including Ultralytics cache config
-RUN mkdir -p /app/uploads /app/output /tmp/Ultralytics
-# Fix permissions: /app for code/uploads, /tmp/Ultralytics for AI cache
+# Create directories including persistent app data and cache locations
+RUN mkdir -p /app/uploads /app/output /app/data/uploads /app/data/chromadb /app/.cache/huggingface /tmp/Ultralytics
+# Fix permissions: /app for code/writable data, /tmp/Ultralytics for AI cache
 RUN chown -R appuser:appuser /app /tmp/Ultralytics
 
 # Switch to non-root user

@@ -1,5 +1,8 @@
 FROM node:18-bookworm-slim
 
+ARG APP_UID=10001
+ARG APP_GID=10001
+
 # Install Chromium and FFmpeg for Remotion rendering
 RUN apt-get update && \
     apt-get install -y --no-install-recommends chromium ffmpeg && \
@@ -10,6 +13,8 @@ ENV REMOTION_BUNDLE_PATH=/app/remotion
 ENV OUTPUT_DIR=/output
 
 WORKDIR /app
+
+RUN groupadd -g ${APP_GID} appuser && useradd -u ${APP_UID} -g appuser -d /app -s /usr/sbin/nologin appuser
 
 # Copy render service source
 COPY render-service/package.json ./
@@ -29,6 +34,10 @@ RUN cd /app/remotion && npm install
 
 # Build TypeScript
 RUN npm run build
+
+RUN mkdir -p /output && chown -R appuser:appuser /app /output
+
+USER appuser
 
 EXPOSE 3100
 CMD ["node", "dist/server.js"]

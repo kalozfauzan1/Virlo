@@ -1,13 +1,19 @@
+x-app-user-build-args: &app-user-build-args
+  APP_UID: 10001
+  APP_GID: 10001
+
 services:
   backend:
-    build: .
+    build:
+      context: .
+      args: *app-user-build-args
     container_name: openshorts-backend
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
-      - /app/__pycache__
-      - ./output:/app/output
+      - backend-uploads:/app/uploads
+      - backend-output:/app/output
+      - backend-data:/app/data
       - hf-cache:/app/.cache/huggingface
     env_file:
       - .env
@@ -29,11 +35,12 @@ services:
     build:
       context: .
       dockerfile: render-service/Dockerfile
+      args: *app-user-build-args
     container_name: openshorts-renderer
     ports:
       - "3100:3100"
     volumes:
-      - ./output:/output
+      - backend-output:/output
     environment:
       - REMOTION_BUNDLE_PATH=/app/remotion
       - OUTPUT_DIR=/output
@@ -43,4 +50,7 @@ services:
       - backend
 
 volumes:
+  backend-uploads:
+  backend-output:
+  backend-data:
   hf-cache:
