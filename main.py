@@ -27,6 +27,7 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="google.protobuf")
 
 from ffmpeg_utils import get_video_encoder_opts, get_audio_encoder_opts, has_cuda
+from youtube_cookies import cleanup_temp_cookie_file, write_temp_cookie_file
 
 # Load environment variables
 load_dotenv()
@@ -1870,28 +1871,28 @@ def download_youtube_video(url, output_dir="."):
     print("📥 Downloading video from YouTube...")
     step_start_time = time.time()
 
-    cookies_path = "/app/cookies.txt"
-    cookies_env = os.environ.get("YOUTUBE_COOKIES")
-    if cookies_env:
-        print(
-            "🍪 Found YOUTUBE_COOKIES env var, creating cookies file inside container..."
-        )
-        try:
-            with open(cookies_path, "w") as f:
-                f.write(cookies_env)
-            if os.path.exists(cookies_path):
-                print(
-                    f"   Debug: Cookies file created. Size: {os.path.getsize(cookies_path)} bytes"
-                )
-                with open(cookies_path, "r") as f:
-                    content = f.read(100)
-                    print(f"   Debug: First 100 chars of cookie file: {content}")
-        except Exception as e:
-            print(f"⚠️ Failed to write cookies file: {e}")
+    cookies_path = os.environ.get("YOUTUBE_COOKIES_FILE")
+    generated_cookies_path = None
+
+    if cookies_path:
+        if os.path.exists(cookies_path):
+            print("🍪 Using YouTube cookies file from YOUTUBE_COOKIES_FILE.")
+        else:
+            print("⚠️ YOUTUBE_COOKIES_FILE is set but the file does not exist.")
             cookies_path = None
-    else:
-        cookies_path = None
-        print("⚠️ YOUTUBE_COOKIES env var not found.")
+
+    if not cookies_path:
+        cookies_env = os.environ.get("YOUTUBE_COOKIES")
+        if cookies_env:
+            print("🍪 Found YOUTUBE_COOKIES env var, creating temporary cookies file...")
+            try:
+                generated_cookies_path = write_temp_cookie_file("env", cookies_env)
+                cookies_path = generated_cookies_path
+            except Exception as e:
+                print(f"⚠️ Failed to prepare YouTube cookies from env: {e}")
+                cookies_path = None
+        else:
+            print("⚠️ No YouTube cookies configured.")
 
     # Common yt-dlp options to work around YouTube bot detection.
     # extractor_args tries multiple player clients in order; tv_embed / android
@@ -1940,13 +1941,15 @@ def download_youtube_video(url, output_dir="."):
 ❌ FATAL ERROR: YOUTUBE DOWNLOAD FAILED
 ❌ ================================================================= ❌
             
-REASON: YouTube has blocked the download request (Error 429/Unavailable).
-        This is likely a temporary IP ban on this server.
+REASON: YouTube blocked this server download request.
 
 👇 SOLUTION FOR USER 👇
 ---------------------------------------------------------------------
-1. Download the video manually to your computer.
-2. Use the 'Upload Video' tab in this app to process it.
+1. In Clip Generator, click "Setup YouTube Access".
+2. Import your YouTube cookies.txt once.
+3. Run this job again.
+
+Alternative: upload the video file manually.
 ---------------------------------------------------------------------
 
 Technical Details: {str(e)}
@@ -1962,6 +1965,7 @@ Technical Details: {str(e)}
             # Wait a split second to allow buffer to drain before raising
             time.sleep(0.5)
 
+            cleanup_temp_cookie_file(generated_cookies_path)
             raise e
 
     output_template = os.path.join(output_dir, f"{sanitized_title}.%(ext)s")
@@ -1978,8 +1982,11 @@ Technical Details: {str(e)}
         "overwrites": True,
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    finally:
+        cleanup_temp_cookie_file(generated_cookies_path)
 
     downloaded_file = os.path.join(output_dir, f"{sanitized_title}.mp4")
 

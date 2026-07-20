@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Youtube, Upload, FileVideo, X, Film, Crop, Tag } from 'lucide-react';
+import { Youtube, Upload, FileVideo, X, Film, Crop, Tag, Shield, ExternalLink, Trash2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { getApiUrl } from '../config';
+import { validateYouTubeCookies } from '../lib/youtubeCookies';
 
-export default function MediaInput({ onProcess, isProcessing }) {
+export default function MediaInput({
+    onProcess,
+    isProcessing,
+    youtubeCookiesConfigured = false,
+    youtubeCookiesSummary = { lineCount: 0, domainCount: 0, hasCookies: false },
+    onSaveYouTubeCookies,
+    onRemoveYouTubeCookies
+}) {
     const [youtubeUrlEnabled, setYoutubeUrlEnabled] = useState(true);
     const [mode, setMode] = useState('url'); // 'url' | 'file'
     const [url, setUrl] = useState('');
@@ -10,6 +18,10 @@ export default function MediaInput({ onProcess, isProcessing }) {
     const [acknowledged, setAcknowledged] = useState(false);
     const [cropStyle, setCropStyle] = useState('blur_bars'); // 'blur_bars' | 'auto'
     const [category, setCategory] = useState('general'); // 'general' | 'podcast' | ...
+    const [showCookieSetup, setShowCookieSetup] = useState(false);
+    const [cookieInput, setCookieInput] = useState('');
+    const [cookieError, setCookieError] = useState('');
+    const [cookieSaved, setCookieSaved] = useState(false);
 
     useEffect(() => {
         fetch(getApiUrl('/api/config'))
@@ -38,6 +50,36 @@ export default function MediaInput({ onProcess, isProcessing }) {
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             setFile(e.dataTransfer.files[0]);
             setMode('file');
+        }
+    };
+
+    const handleCookieFile = async (selectedFile) => {
+        if (!selectedFile) return;
+        const text = await selectedFile.text();
+        setCookieInput(text);
+        setCookieError('');
+        setCookieSaved(false);
+    };
+
+    const handleSaveCookies = () => {
+        const validation = validateYouTubeCookies(cookieInput);
+        if (!validation.ok) {
+            setCookieError(validation.message);
+            setCookieSaved(false);
+            return;
+        }
+        try {
+            onSaveYouTubeCookies?.(cookieInput);
+            setCookieError('');
+            setCookieSaved(true);
+            setTimeout(() => {
+                setShowCookieSetup(false);
+                setCookieInput('');
+                setCookieSaved(false);
+            }, 900);
+        } catch (error) {
+            setCookieError(error.message || 'Failed to save YouTube cookies.');
+            setCookieSaved(false);
         }
     };
 
@@ -79,6 +121,44 @@ export default function MediaInput({ onProcess, isProcessing }) {
                             className="input-field"
                             required
                         />
+
+                        <div className={`rounded-xl border p-4 ${youtubeCookiesConfigured ? 'bg-green-500/5 border-green-500/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex gap-3">
+                                    {youtubeCookiesConfigured ? (
+                                        <CheckCircle2 size={18} className="text-green-400 mt-0.5 shrink-0" />
+                                    ) : (
+                                        <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+                                    )}
+                                    <div>
+                                        <div className="text-sm font-medium text-white">YouTube Access</div>
+                                        <p className="text-xs text-zinc-400 mt-1">
+                                            {youtubeCookiesConfigured
+                                                ? `Configured in this browser (${youtubeCookiesSummary.lineCount} cookie rows).`
+                                                : 'Optional: add your YouTube cookies once if server downloads are blocked.'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCookieSetup(true)}
+                                        className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white hover:bg-white/15 transition-colors"
+                                    >
+                                        {youtubeCookiesConfigured ? 'Update' : 'Setup'}
+                                    </button>
+                                    {youtubeCookiesConfigured && (
+                                        <button
+                                            type="button"
+                                            onClick={onRemoveYouTubeCookies}
+                                            className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/15 transition-colors"
+                                        >
+                                            Remove
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     <div
@@ -204,6 +284,139 @@ export default function MediaInput({ onProcess, isProcessing }) {
                     )}
                 </button>
             </form>
+
+            {showCookieSetup && (
+                <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-2xl bg-[#151515] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="flex items-center justify-between p-5 border-b border-white/10">
+                            <div className="flex items-center gap-3">
+                                <Shield size={20} className="text-primary" />
+                                <div>
+                                    <h3 className="text-lg font-semibold text-white">Setup YouTube Access</h3>
+                                    <p className="text-xs text-zinc-500">Import once, reuse for future Clip Generator jobs on this browser.</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowCookieSetup(false)}
+                                className="p-2 rounded-lg hover:bg-white/10 text-zinc-400"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-5">
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                <p className="text-sm text-zinc-300 leading-relaxed">
+                                    YouTube sometimes blocks server downloads. Add your own YouTube cookies once so Virlo can download videos like your browser.
+                                </p>
+                            </div>
+
+                            <div className="grid sm:grid-cols-3 gap-3">
+                                <a
+                                    href="https://www.youtube.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 text-xs px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 transition-colors"
+                                >
+                                    Open YouTube <ExternalLink size={13} />
+                                </a>
+                                <a
+                                    href="https://www.youtube.com/robots.txt"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 text-xs px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 transition-colors"
+                                >
+                                    Open robots.txt <ExternalLink size={13} />
+                                </a>
+                                <a
+                                    href="https://chromewebstore.google.com/search/cookies.txt"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-2 text-xs px-3 py-2 rounded-lg bg-white/10 text-white hover:bg-white/15 transition-colors"
+                                >
+                                    Find exporter <ExternalLink size={13} />
+                                </a>
+                            </div>
+
+                            <ol className="space-y-2 text-sm text-zinc-300 list-decimal list-inside">
+                                <li>Open a private/incognito browser window.</li>
+                                <li>Log in to YouTube.</li>
+                                <li>In the same private window, open https://www.youtube.com/robots.txt.</li>
+                                <li>Export cookies using a cookies.txt browser extension.</li>
+                                <li>Import the exported cookies.txt below.</li>
+                                <li>Close the private/incognito window.</li>
+                            </ol>
+
+                            <div className="space-y-3">
+                                <label className="block">
+                                    <input
+                                        type="file"
+                                        accept=".txt,text/plain"
+                                        onChange={(e) => handleCookieFile(e.target.files?.[0])}
+                                        className="hidden"
+                                    />
+                                    <span className="block cursor-pointer text-center rounded-xl border border-dashed border-zinc-700 hover:border-primary/50 bg-white/5 px-4 py-4 text-sm text-zinc-300">
+                                        Click to import cookies.txt
+                                    </span>
+                                </label>
+
+                                <textarea
+                                    value={cookieInput}
+                                    onChange={(e) => {
+                                        setCookieInput(e.target.value);
+                                        setCookieError('');
+                                        setCookieSaved(false);
+                                    }}
+                                    placeholder="Or paste Netscape cookies.txt content here..."
+                                    className="w-full min-h-[140px] bg-black/30 border border-white/10 rounded-xl px-3 py-3 text-xs text-zinc-300 focus:outline-none focus:border-primary/50 font-mono"
+                                />
+
+                                {cookieError && (
+                                    <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                                        {cookieError}
+                                    </p>
+                                )}
+
+                                {cookieSaved && (
+                                    <p className="text-xs text-green-300 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+                                        YouTube cookies saved in this browser.
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleSaveCookies}
+                                    className="flex-1 btn-primary"
+                                >
+                                    Save YouTube Cookies
+                                </button>
+                                {youtubeCookiesConfigured && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onRemoveYouTubeCookies?.();
+                                            setCookieInput('');
+                                            setCookieSaved(false);
+                                            setCookieError('');
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-300 border border-red-500/20 hover:bg-red-500/15 transition-colors"
+                                    >
+                                        <Trash2 size={15} />
+                                        Remove Saved Cookies
+                                    </button>
+                                )}
+                            </div>
+
+                            <p className="text-[11px] text-zinc-500 leading-relaxed">
+                                Your cookies are stored only in this browser and sent to the server only when you run a YouTube URL job. Virlo does not store them permanently on the server.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

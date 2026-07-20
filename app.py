@@ -35,6 +35,7 @@ from s3_uploader import (
     list_video_gallery,
 )
 from learning.routes import router as learning_router, init_learning
+from youtube_cookies import cleanup_temp_cookie_file, write_temp_cookie_file
 
 load_dotenv()
 
@@ -362,6 +363,8 @@ async def run_job(job_id, job_data):
     except Exception as e:
         jobs[job_id]["status"] = "failed"
         jobs[job_id]["logs"].append(f"Execution error: {str(e)}")
+    finally:
+        cleanup_temp_cookie_file(job_data.get("youtube_cookies_file"))
 
 
 @app.get("/api/config")
@@ -400,6 +403,7 @@ async def process_endpoint(
         category = body.get("category", "general")
         rag_profile = body.get("rag_profile")
         rag_fallback = body.get("rag_fallback", True)
+        youtube_cookies = body.get("youtube_cookies")
 
     if not url and not file:
         raise HTTPException(status_code=400, detail="Must provide URL or File")
@@ -433,6 +437,14 @@ async def process_endpoint(
     job_id = str(uuid.uuid4())
     job_output_dir = os.path.join(OUTPUT_DIR, job_id)
     os.makedirs(job_output_dir, exist_ok=True)
+
+    youtube_cookies_file = None
+    if url and youtube_cookies:
+        try:
+            youtube_cookies_file = write_temp_cookie_file(job_id, youtube_cookies)
+        except ValueError as exc:
+            shutil.rmtree(job_output_dir, ignore_errors=True)
+            raise HTTPException(status_code=400, detail=str(exc))
 
     # Prepare Command
     cmd = [sys.executable, "-u", "main.py"]  # -u for unbuffered
@@ -473,6 +485,9 @@ async def process_endpoint(
         cmd.extend(["--rag-profile", rag_profile])
     cmd.extend(["--rag-fallback", "true" if rag_fallback else "false"])
 
+    if youtube_cookies_file:
+        env["YOUTUBE_COOKIES_FILE"] = youtube_cookies_file
+
     print(
         f"[attestation] job={job_id} ip={attestation['ip']} source={attestation['source']} ack=true"
     )
@@ -485,6 +500,7 @@ async def process_endpoint(
         "env": env,
         "output_dir": job_output_dir,
         "attestation": attestation,
+        "youtube_cookies_file": youtube_cookies_file,
     }
 
     await job_queue.put(job_id)

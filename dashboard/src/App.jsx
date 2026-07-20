@@ -10,6 +10,12 @@ import SaaShortsTab from './components/SaaShortsTab';
 import UGCGallery from './components/UGCGallery';
 import ScheduleWeekModal from './components/ScheduleWeekModal';
 import { getApiUrl } from './config';
+import {
+  normalizeYouTubeCookies,
+  summarizeYouTubeCookies,
+  validateYouTubeCookies,
+  YOUTUBE_COOKIES_STORAGE_KEY
+} from './lib/youtubeCookies';
 
 // Enhanced "Encryption" using XOR + Base64 with a Salt
 // This is better than plain Base64 but still client-side.
@@ -183,6 +189,13 @@ function App() {
   });
   const [replizAccounts, setReplizAccounts] = useState([]);
   
+  // YouTube Cookies State - Load encrypted
+  const [youtubeCookies, setYoutubeCookies] = useState(() => {
+    const stored = localStorage.getItem(YOUTUBE_COOKIES_STORAGE_KEY);
+    if (stored) return decrypt(stored);
+    return '';
+  });
+
   // Buffer API State - Load encrypted
   const [bufferApiKey, setBufferApiKey] = useState(() => {
     const stored = localStorage.getItem('bufferApiKey_v1');
@@ -444,6 +457,22 @@ function App() {
     }
   };
 
+  const handleSaveYouTubeCookies = (rawCookies) => {
+    const validation = validateYouTubeCookies(rawCookies);
+    if (!validation.ok) {
+      throw new Error(validation.message);
+    }
+
+    const normalized = normalizeYouTubeCookies(rawCookies);
+    localStorage.setItem(YOUTUBE_COOKIES_STORAGE_KEY, encrypt(normalized));
+    setYoutubeCookies(normalized);
+  };
+
+  const handleRemoveYouTubeCookies = () => {
+    localStorage.removeItem(YOUTUBE_COOKIES_STORAGE_KEY);
+    setYoutubeCookies('');
+  };
+
   const handleProcess = async (data) => {
     if (!apiKey || !uploadPostKey) {
       setShowKeyModal(true);
@@ -466,7 +495,8 @@ function App() {
           transcription_method: transcriptionMethod,
           groq_key: groqKey,
           crop_style: data.cropStyle || 'blur_bars',
-          category: data.category || 'general'
+          category: data.category || 'general',
+          youtube_cookies: youtubeCookies || undefined
         });
       } else {
         const formData = new FormData();
@@ -1206,7 +1236,14 @@ function App() {
                   </p>
                 </div>
 
-                <MediaInput onProcess={handleProcess} isProcessing={status === 'processing'} />
+                <MediaInput
+                onProcess={handleProcess}
+                isProcessing={status === 'processing'}
+                youtubeCookiesConfigured={!!youtubeCookies}
+                youtubeCookiesSummary={summarizeYouTubeCookies(youtubeCookies)}
+                onSaveYouTubeCookies={handleSaveYouTubeCookies}
+                onRemoveYouTubeCookies={handleRemoveYouTubeCookies}
+              />
 
                 <div className="flex items-center justify-center gap-8 text-zinc-500 text-sm">
                   <span className="flex items-center gap-2"><Youtube size={16} /> YouTube</span>
