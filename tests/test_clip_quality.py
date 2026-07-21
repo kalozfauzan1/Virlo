@@ -61,6 +61,23 @@ from main import (
 )
 
 
+def test_youtube_extractor_args_use_cookie_capable_clients_with_cookies():
+    args = main._build_youtube_extractor_args(has_cookies=True)
+
+    assert args["youtube"]["player_client"] == ["tv_downgraded", "web_safari"]
+    assert "player_skip" not in args["youtube"]
+
+
+def test_youtube_ydl_common_opts_enable_node_challenge_solver():
+    opts = main._build_common_youtube_ydl_opts("/tmp/cookies.txt")
+
+    assert opts["cookiefile"] == "/tmp/cookies.txt"
+    assert opts["js_runtimes"] == {"node": {}}
+    assert opts["extractor_args"] == {
+        "youtube": {"player_client": ["tv_downgraded", "web_safari"]}
+    }
+
+
 def _candidate(
     candidate_id,
     lane,

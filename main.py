@@ -1862,6 +1862,41 @@ def sanitize_filename(filename):
     return filename[:100]
 
 
+def _build_youtube_extractor_args(has_cookies=False):
+    if has_cookies:
+        return {"youtube": {"player_client": ["tv_downgraded", "web_safari"]}}
+
+    return {
+        "youtube": {
+            "player_client": ["tv_embed", "android", "mweb", "web"],
+            "player_skip": ["webpage", "configs"],
+        }
+    }
+
+
+def _build_common_youtube_ydl_opts(cookies_path=None):
+    return {
+        "quiet": False,
+        "verbose": True,
+        "no_warnings": False,
+        "cookiefile": cookies_path if cookies_path else None,
+        "socket_timeout": 30,
+        "retries": 10,
+        "fragment_retries": 10,
+        "nocheckcertificate": True,
+        "cachedir": False,
+        "extractor_args": _build_youtube_extractor_args(has_cookies=bool(cookies_path)),
+        "js_runtimes": {"node": {}},
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+        },
+    }
+
+
 def download_youtube_video(url, output_dir="."):
     """
     Downloads a YouTube video using yt-dlp.
@@ -1894,33 +1929,7 @@ def download_youtube_video(url, output_dir="."):
         else:
             print("⚠️ No YouTube cookies configured.")
 
-    # Common yt-dlp options to work around YouTube bot detection.
-    # extractor_args tries multiple player clients in order; tv_embed / android
-    # avoid the OAuth/PO-token checks that block server IPs.
-    _COMMON_YDL_OPTS = {
-        "quiet": False,
-        "verbose": True,
-        "no_warnings": False,
-        "cookiefile": cookies_path if cookies_path else None,
-        "socket_timeout": 30,
-        "retries": 10,
-        "fragment_retries": 10,
-        "nocheckcertificate": True,
-        "cachedir": False,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["tv_embed", "android", "mweb", "web"],
-                "player_skip": ["webpage", "configs"],
-            }
-        },
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
-        },
-    }
+    _COMMON_YDL_OPTS = _build_common_youtube_ydl_opts(cookies_path)
 
     with yt_dlp.YoutubeDL(_COMMON_YDL_OPTS) as ydl:
         try:
